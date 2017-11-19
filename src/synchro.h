@@ -8,7 +8,12 @@ extern bool fini;
 
 
 /* Les extern des variables pour la synchro ici */
-
+extern pthread_mutex_t m;
+extern pthread_cond_t clect;
+extern pthread_cond_t cecr;
+extern pthread_cond_t cdessin;
+extern int nbTextureBase;
+extern int nbTextureAttente;
 
 /* Fonctions de synchro à implanter */
 
