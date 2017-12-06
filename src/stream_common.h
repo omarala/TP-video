@@ -2,10 +2,13 @@
 #define STREAM_COMMON_H
 
 #include "ensivideo.h"
+#include "pthread.h"
 
 extern bool fini;
-extern pthread_t theora2sdlthread;
+pthread_t theora2sdlthread;
 extern struct timespec datedebut;
+extern pthread_mutex_t mutex_video;
+
 
 int msFromStart();
 void pageReader(FILE *vf, ogg_sync_state *pstate, ogg_page *ppage);

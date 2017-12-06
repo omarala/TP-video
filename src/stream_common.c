@@ -6,7 +6,7 @@
 #include "synchro.h"
 
 bool fini = false;
-
+pthread_mutex_t mutex_video;
 
 struct timespec datedebut;
 
@@ -37,10 +37,10 @@ void pageReader(FILE *vf, ogg_sync_state *pstate, ogg_page *ppage) {
 	if (bytes > 0)
 	    // écriture des données dans l'automate de décodage
 	    ogg_sync_wrote( pstate, bytes );
-	    
+
 	res = ogg_sync_pageout( pstate, ppage );
     }
-    
+
 }
 
 struct streamstate *getStreamState(ogg_sync_state *pstate, ogg_page *ppage,
@@ -51,37 +51,40 @@ struct streamstate *getStreamState(ogg_sync_state *pstate, ogg_page *ppage,
 
     struct streamstate *s= NULL;
     if (bos) { // début de stream
-	s = malloc(sizeof(struct streamstate));
-	s->serial = serial;
-	s->nbpacket = 0;
-	s->nbpacketoutsync = 0;
-	s->strtype = TYPE_UNKNOW;
-	s->headersRead = false;
-	int res = ogg_stream_init( & s->strstate, serial );
-	th_info_init(& s->th_dec.info);
-	th_comment_init(& s->th_dec.comment);
-	vorbis_info_init( & s->vo_dec.info);
-	vorbis_comment_init( & s->vo_dec.comment);
-	assert(res == 0);
+    	s = malloc(sizeof(struct streamstate));
+    	s->serial = serial;
+    	s->nbpacket = 0;
+    	s->nbpacketoutsync = 0;
+    	s->strtype = TYPE_UNKNOW;
+    	s->headersRead = false;
+    	int res = ogg_stream_init( & s->strstate, serial );
+    	th_info_init(& s->th_dec.info);
+    	th_comment_init(& s->th_dec.comment);
+    	vorbis_info_init( & s->vo_dec.info);
+    	vorbis_comment_init( & s->vo_dec.comment);
+    	assert(res == 0);
 
-	// proteger l'accès à la hashmap
+    	// proteger l'accès à la hashmap
+      pthread_mutex_lock(&mutex_video);
+    	if (type == TYPE_THEORA)
+    	    HASH_ADD_INT( theorastrstate, serial, s );
+    	else
+    	    HASH_ADD_INT( vorbisstrstate, serial, s );
 
-	if (type == TYPE_THEORA)
-	    HASH_ADD_INT( theorastrstate, serial, s );
-	else
-	    HASH_ADD_INT( vorbisstrstate, serial, s );
-
+      pthread_mutex_unlock(&mutex_video);
     } else {
-	// proteger l'accès à la hashmap
+    	// proteger l'accès à la hashmap
+      pthread_mutex_lock(&mutex_video);
+    	if (type == TYPE_THEORA)
+    	    HASH_FIND_INT( theorastrstate, & serial, s );
+    	else
+    	    HASH_FIND_INT( vorbisstrstate, & serial, s );
 
-	if (type == TYPE_THEORA)
-	    HASH_FIND_INT( theorastrstate, & serial, s );
-	else	
-	    HASH_FIND_INT( vorbisstrstate, & serial, s );    
-
-	assert(s != NULL);
+    	assert(s != NULL);
+      pthread_mutex_unlock(&mutex_video);
     }
     assert(s != NULL);
+    //pthread_mutex_unlock(&mutex_video);
 
     return s;
 }
@@ -91,7 +94,7 @@ int addPageGetPacket(ogg_page *ppage, struct streamstate *s) {
     // ajout de la page dans le stream
     int res = ogg_stream_pagein( & s->strstate, ppage );
     assert(res == 0);
-    
+
     // retirer un packet du stream
     int respac = ogg_stream_packetout( & s->strstate, & s->packet );
     return respac;
@@ -106,7 +109,7 @@ int getPacket(struct streamstate *s) {
 
 /* decode headers and update stream structure */
 /* create additional threads if the stream is of the right type */
-/* return 1, if the packet is fully handled 
+/* return 1, if the packet is fully handled
    otherwise return 0;
  */
 
@@ -140,9 +143,9 @@ int decodeAllHeaders(int respac, struct streamstate *s, enum streamtype type) {
 
 	    if (type == TYPE_THEORA) {
 		// lancement du thread gérant l'affichage (draw2SDL)
-	        // inserer votre code ici !!
+          pthread_create(&theora2sdlthread, NULL, draw2SDL, (void *)(long long int)s->serial);
 
-		assert(res == 0);		     
+		assert(res == 0);
 	    }
 	}
     }

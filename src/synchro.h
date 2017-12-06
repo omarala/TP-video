@@ -9,12 +9,14 @@ extern bool fini;
 
 /* Les extern des variables pour la synchro ici */
 extern pthread_mutex_t m;
-extern pthread_cond_t clect;
-extern pthread_cond_t cecr;
+extern pthread_mutex_t mutex_taille_fenetre;
+extern pthread_cond_t cconsom;
+extern pthread_cond_t cdepot;
 extern pthread_cond_t cdessin;
-extern int nbTextureBase;
+extern pthread_cond_t ctaille;
+extern pthread_cond_t ctexture;
 extern int nbTextureAttente;
-
+extern bool texturestate;
 /* Fonctions de synchro à implanter */
 
 void envoiTailleFenetre(th_ycbcr_buffer buffer);
